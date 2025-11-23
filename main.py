@@ -6,68 +6,176 @@ from dotenv import load_dotenv
 from src.services.ocr_engine import OCREngine
 from src.services.llm_client import OllamaClient
 from src.core.forensic import ForensicAnalyzer
+from src.utils.logger import setup_logger
+from src.utils.csv_exporter import CSVExporter
+import logging
 
-# Load env
+# Load environment variables
 load_dotenv()
 
-def main():
-    print(f"\n=== {os.getenv('APP_NAME')} ===")
+# Setup logging
+setup_logger()
+logger = logging.getLogger(__name__)
+
+def print_header():
+    """Print application header"""
+    print("\n" + "=" * 60)
+    print(f"  {os.getenv('APP_NAME', 'SiSah-AI v2.0')}  ".center(60))
+    print("  Sistem Verifikasi Keaslian Dokumen Pendidikan  ".center(60))
+    print("=" * 60)
+
+def print_forensic_result(forensic_data: dict):
+    """Print forensic analysis results"""
+    status = forensic_data.get('status', 'UNKNOWN')
+    score = forensic_data.get('score', 0)
+    anomaly = forensic_data.get('anomaly_percentage', 0)
     
-    # 1. Ambil input path gambar dari argument command line
+    # Color-coded output
+    if status == "ORIGINAL":
+        icon = "✅"
+        status_text = f"{icon} AMAN (Original)"
+    elif status == "MINOR_EDIT":
+        icon = "⚠️"
+        status_text = f"{icon} MINOR EDIT (Score: {score:.1f})"
+    elif status == "SUSPICIOUS":
+        icon = "⚠️"
+        status_text = f"{icon} SUSPICIOUS (Score: {score:.1f}, Anomaly: {anomaly:.2f}%)"
+    else:
+        icon = "🚨"
+        status_text = f"{icon} HIGHLY SUSPICIOUS (Score: {score:.1f}, Anomaly: {anomaly:.2f}%)"
+    
+    print(f"   Status: {status_text}")
+    print(f"   Detail: Max Error={score:.2f}, Mean={forensic_data.get('mean_score', 0):.2f}, Anomaly={anomaly:.2f}%")
+
+def print_document_data(data: dict, doc_type: str):
+    """Print extracted document data"""
+    print("\n" + "=" * 60)
+    print(f"  LAPORAN VERIFIKASI - {doc_type}  ".center(60))
+    print("=" * 60)
+    
+    if "IJAZAH" in doc_type:
+        print(f"Nama Mahasiswa   : {data.get('nama_lengkap') or '-'}")
+        print(f"No. Ijazah       : {data.get('nomor_ijazah') or '-'}")
+        print(f"Perguruan Tinggi : {data.get('nama_pt') or '-'}")
+        print(f"Program Studi    : {data.get('program_studi') or '-'}")
+        print(f"IPK              : {data.get('ipk') or '-'}")
+        print(f"Gelar            : {data.get('gelar') or '-'}")
+        print(f"Tgl Lulus        : {data.get('tanggal_lulus') or '-'}")
+    else:
+        print("Data ekstraksi untuk tipe dokumen ini masih dalam pengembangan.")
+    
+    print("=" * 60)
+
+def main():
+    print_header()
+    
+    # Validate arguments
     if len(sys.argv) < 2:
-        print("Usage: python main.py <path_to_image>")
-        print("Example: python main.py ijazah_sample.jpg")
+        print("\n❌ Error: File gambar tidak ditemukan!")
+        print("\nUsage:")
+        print(f"  python {sys.argv[0]} <path_to_image>")
+        print("\nExample:")
+        print(f"  python {sys.argv[0]} ijazah_sample.jpg")
+        print(f"  python {sys.argv[0]} 001.bmp")
         return
 
     image_path = sys.argv[1]
+    filename = os.path.basename(image_path)
     
+    # Validate file exists
     if not os.path.exists(image_path):
-        print("❌ Error: File gambar tidak ditemukan!")
+        print(f"\n❌ Error: File tidak ditemukan: {image_path}")
         return
-
-    # Inisialisasi Service
+    
+    logger.info(f"Processing file: {image_path}")
+    
+    # Initialize services
     ocr = OCREngine()
     llm = OllamaClient()
     forensics = ForensicAnalyzer()
-
-    # --- STEP 1: FORENSIK ---
-    print("\n🔍 [1/3] Menganalisis Integritas Digital...")
-    ela_score = forensics.analyze_ela(image_path)
-    threshold = float(os.getenv("ELA_THRESHOLD", 15.0))
+    csv_exporter = CSVExporter()
     
-    forensic_status = "✅ AMAN (Original)"
-    if ela_score > threshold:
-        forensic_status = f"⚠️ WARNING (Terindikasi Editan - Score: {ela_score})"
-    else:
-        forensic_status += f" (Score: {ela_score})"
+    # Container untuk hasil
+    scan_result = {
+        'filename': filename,
+        'status': 'FAILED'
+    }
+    
+    try:
+        # === STEP 1: FORENSIC ANALYSIS ===
+        print("\n🔍 [1/4] Menganalisis Integritas Digital...")
+        forensic_data = forensics.analyze_ela(image_path)
+        scan_result['forensic'] = forensic_data
+        print_forensic_result(forensic_data)
         
-    print(f"   -> Status: {forensic_status}")
-
-    # --- STEP 2: OCR ---
-    print("\n📖 [2/3] Mengekstrak Teks (OCR)...")
-    raw_text = ocr.extract_text(image_path)
-    if not raw_text:
-        print("❌ Gagal membaca teks. Pastikan gambar jelas.")
-        return
-    print(f"   -> Teks Mentah (Preview): {raw_text[:80].replace(chr(10), ' ')}...")
-
-    # --- STEP 3: LLM PARSING ---
-    print("\n🧠 [3/3] Mengolah Data dengan AI...")
-    parsed_data = llm.parse_ijazah_text(raw_text)
-
-    # --- HASIL AKHIR ---
-    print("\n" + "="*50)
-    print("   LAPORAN VERIFIKASI IJAZAH   ")
-    print("="*50)
-    print(f"INTEGRITAS FILE : {forensic_status}")
-    print("-" * 50)
-    print(f"Nama Mahasiswa  : {parsed_data.get('nama_lengkap', '-')}")
-    print(f"No. Ijazah      : {parsed_data.get('nomor_ijazah', '-')}")
-    print(f"Perguruan Tinggi: {parsed_data.get('universitas', '-')}")
-    print(f"Program Studi   : {parsed_data.get('prodi', '-')}")
-    print(f"IPK             : {parsed_data.get('ipk', '-')}")
-    print(f"Tgl Lulus       : {parsed_data.get('tanggal_lulus', '-')}")
-    print("="*50)
+        # Metadata check
+        metadata = forensics.check_metadata(image_path)
+        if not metadata.get('has_exif', False):
+            print("   ⚠️  Warning: Tidak ada metadata EXIF (kemungkinan sudah diedit)")
+        
+        # === STEP 2: OCR EXTRACTION ===
+        print("\n📖 [2/4] Mengekstrak Teks (OCR)...")
+        debug_mode = os.getenv("DEBUG_MODE", "False").lower() == "true"
+        raw_text = ocr.extract_text(image_path, debug=debug_mode)
+        
+        if not raw_text or len(raw_text) < 20:
+            print("❌ Gagal membaca teks. Pastikan gambar jelas dan tidak terbalik.")
+            logger.warning(f"OCR failed or returned insufficient text: {len(raw_text)} chars")
+            scan_result['status'] = 'OCR_FAILED'
+            csv_exporter.export_result(scan_result)
+            return
+        
+        # Get OCR confidence
+        confidence_data = ocr.get_confidence_data(image_path)
+        scan_result['ocr_confidence'] = confidence_data
+        
+        print(f"   ✓ Teks berhasil diekstrak ({len(raw_text)} karakter)")
+        print(f"   Confidence Score: {confidence_data['average_confidence']:.1f}%")
+        
+        if debug_mode:
+            print(f"   Preview: {raw_text[:150].replace(chr(10), ' ')}...")
+        
+        # === STEP 3: DOCUMENT TYPE DETECTION ===
+        print("\n🔎 [3/4] Mendeteksi Jenis Dokumen...")
+        doc_type = llm.detect_document_type(raw_text)
+        scan_result['document_type'] = doc_type
+        print(f"   ✓ Jenis Dokumen: {doc_type}")
+        
+        # === STEP 4: LLM PARSING ===
+        print("\n🧠 [4/4] Mengolah Data dengan AI...")
+        
+        if "IJAZAH" in doc_type:
+            parsed_data = llm.parse_ijazah_text(raw_text)
+            scan_result['data'] = parsed_data
+            scan_result['status'] = 'COMPLETED'
+            
+            # === DISPLAY RESULTS ===
+            print("\n✅ Proses Selesai!")
+            print_document_data(parsed_data, doc_type)
+            
+        else:
+            print(f"   ⚠️  Dokumen jenis '{doc_type}' belum didukung untuk parsing detail.")
+            scan_result['data'] = {}
+            scan_result['status'] = 'UNSUPPORTED_TYPE'
+        
+        # === EXPORT TO CSV ===
+        csv_exporter.export_result(scan_result)
+        print(f"\n💾 Hasil disimpan ke: {csv_exporter.csv_path}")
+        
+        # Show statistics
+        stats = csv_exporter.get_statistics()
+        print(f"📊 Total Scan: {stats.get('total_scans', 0)} | Suspicious: {stats.get('suspicious_count', 0)}")
+        
+    except KeyboardInterrupt:
+        print("\n\n⚠️  Proses dibatalkan oleh user.")
+        logger.info("Process interrupted by user")
+    except Exception as e:
+        print(f"\n❌ Error: {e}")
+        logger.error(f"Main process error: {e}", exc_info=True)
+        scan_result['status'] = 'ERROR'
+        csv_exporter.export_result(scan_result)
+    
+    print("\n" + "=" * 60)
 
 if __name__ == "__main__":
     main()

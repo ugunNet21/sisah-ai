@@ -1,7 +1,9 @@
 # requirements.txt
-opencv-python-headless
-pytesseract
-requests
-python-dotenv
-pydantic
-numpy
+opencv-python-headless==4.8.1.78
+pytesseract==0.3.10
+requests==2.31.0
+python-dotenv==1.0.0
+pydantic==2.5.3
+numpy==1.26.2
+Pillow==10.1.0
+pandas==2.1.4
