@@ -38,14 +38,15 @@ class ImageProcessor:
     def preprocess_for_ocr(image, debug=False):
         """
         Multi-stage preprocessing untuk meningkatkan akurasi OCR
+        Menghasilkan multiple versions untuk strategi OCR berbeda
         """
         # 1. Grayscale
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         
-        # 2. Resize jika terlalu kecil (min width 1000px untuk OCR optimal)
+        # 2. Resize jika terlalu kecil (min width 1500px untuk OCR optimal pada ijazah)
         height, width = gray.shape
-        if width < 1000:
-            scale = 1000 / width
+        if width < 1500:
+            scale = 1500 / width
             new_width = int(width * scale)
             new_height = int(height * scale)
             gray = cv2.resize(gray, (new_width, new_height), interpolation=cv2.INTER_CUBIC)
@@ -53,13 +54,17 @@ class ImageProcessor:
         # 3. Denoising (lebih agresif)
         denoised = cv2.fastNlMeansDenoising(gray, None, h=10, templateWindowSize=7, searchWindowSize=21)
         
-        # 4. Contrast Enhancement (CLAHE - Adaptive Histogram Equalization)
-        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+        # 4. Contrast Enhancement (CLAHE)
+        clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
         enhanced = clahe.apply(denoised)
         
-        # 5. Adaptive Thresholding (lebih baik untuk dokumen dengan pencahayaan tidak merata)
+        # 5. Sharpening untuk teks yang blur
+        kernel_sharp = np.array([[-1,-1,-1], [-1,9,-1], [-1,-1,-1]])
+        sharpened = cv2.filter2D(enhanced, -1, kernel_sharp)
+        
+        # 6. Adaptive Thresholding
         binary = cv2.adaptiveThreshold(
-            enhanced, 
+            sharpened, 
             255, 
             cv2.ADAPTIVE_THRESH_GAUSSIAN_C, 
             cv2.THRESH_BINARY, 
@@ -67,13 +72,36 @@ class ImageProcessor:
             2
         )
         
-        # 6. Morphological operations untuk membersihkan noise
-        kernel = np.ones((1, 1), np.uint8)
+        # 7. Morphological operations untuk cleaning
+        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (1, 1))
         binary = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, kernel)
+        binary = cv2.morphologyEx(binary, cv2.MORPH_OPEN, kernel)
         
-        # Debug: Simpan hasil preprocessing
+        # Debug: Simpan semua tahapan
         if debug:
-            cv2.imwrite("debug_preprocessed.jpg", binary)
+            cv2.imwrite("debug_1_original_gray.jpg", gray)
+            cv2.imwrite("debug_2_denoised.jpg", denoised)
+            cv2.imwrite("debug_3_enhanced.jpg", enhanced)
+            cv2.imwrite("debug_4_sharpened.jpg", sharpened)
+            cv2.imwrite("debug_5_final_binary.jpg", binary)
+        
+        return binary
+    
+    @staticmethod
+    def preprocess_variant_2(image):
+        """Varian preprocessing kedua - untuk teks yang sangat kecil"""
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        
+        # Resize lebih besar
+        height, width = gray.shape
+        if width < 2000:
+            scale = 2000 / width
+            new_width = int(width * scale)
+            new_height = int(height * scale)
+            gray = cv2.resize(gray, (new_width, new_height), interpolation=cv2.INTER_CUBIC)
+        
+        # Otsu thresholding
+        _, binary = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
         
         return binary
     

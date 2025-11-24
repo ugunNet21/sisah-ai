@@ -15,6 +15,10 @@ source venv/bin/activate
 pip install -r requirements.txt
 python3 main.py
 python main.py contoh_ijazah.jpg
+
+# Fix image
+python fix_image.py 001.jpg 001_fixed.jpg aggressive
+python fix_image.py 001.bmp 001_bmp_fixed.jpg aggressive
 ```
 
 ## install
@@ -63,3 +67,6 @@ sudo apt install tesseract-ocr tesseract-ocr-ind libtesseract-dev
     └── test_flow.py
 
 ```
+## Lisensi
+
+Proyek ini dilisensikan di bawah Lisensi MIT - lihat file [LICENSE](./LICENSE) untuk detail lebih lanjut.

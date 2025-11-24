@@ -20,6 +20,7 @@ Thumbs.db
 # Logs
 *.log
 *.csv
+debug_ocr_all_results.txt
 
 # Model / large files
 *.png

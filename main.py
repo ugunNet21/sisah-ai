@@ -53,14 +53,33 @@ def print_document_data(data: dict, doc_type: str):
     print(f"  LAPORAN VERIFIKASI - {doc_type}  ".center(60))
     print("=" * 60)
     
-    if "IJAZAH" in doc_type:
+    # SD/SMP/SMA/SMK
+    if doc_type in ["IJAZAH_SD", "IJAZAH_SMP", "IJAZAH_SMA", "IJAZAH_SMK"]:
+        print(f"Nama Lengkap     : {data.get('nama_lengkap') or '-'}")
+        print(f"NISN             : {data.get('nisn') or '-'}")
+        print(f"No. Ijazah       : {data.get('nomor_ijazah') or '-'}")
+        print(f"Nama Sekolah     : {data.get('nama_sekolah') or '-'}")
+        print(f"Tempat Lahir     : {data.get('tempat_lahir') or '-'}")
+        print(f"Tanggal Lahir    : {data.get('tanggal_lahir') or '-'}")
+        print(f"Nama Orang Tua   : {data.get('nama_ortu') or '-'}")
+        print(f"Tanggal Lulus    : {data.get('tanggal_lulus') or '-'}")
+        
+        if doc_type == "IJAZAH_SMK" and data.get('kompetensi_keahlian'):
+            print(f"Kompetensi       : {data.get('kompetensi_keahlian')}")
+    
+    # Perguruan Tinggi
+    elif "IJAZAH" in doc_type and any(x in doc_type for x in ["D3", "S1", "S2", "S3"]):
         print(f"Nama Mahasiswa   : {data.get('nama_lengkap') or '-'}")
+        print(f"NIM              : {data.get('nim') or '-'}")
         print(f"No. Ijazah       : {data.get('nomor_ijazah') or '-'}")
         print(f"Perguruan Tinggi : {data.get('nama_pt') or '-'}")
         print(f"Program Studi    : {data.get('program_studi') or '-'}")
+        print(f"Jenjang          : {data.get('jenjang') or '-'}")
         print(f"IPK              : {data.get('ipk') or '-'}")
         print(f"Gelar            : {data.get('gelar') or '-'}")
-        print(f"Tgl Lulus        : {data.get('tanggal_lulus') or '-'}")
+        print(f"Tempat Lahir     : {data.get('tempat_lahir') or '-'}")
+        print(f"Tanggal Lahir    : {data.get('tanggal_lahir') or '-'}")
+        print(f"Tanggal Lulus    : {data.get('tanggal_lulus') or '-'}")
     else:
         print("Data ekstraksi untuk tipe dokumen ini masih dalam pengembangan.")
     
@@ -145,7 +164,7 @@ def main():
         print("\n🧠 [4/4] Mengolah Data dengan AI...")
         
         if "IJAZAH" in doc_type:
-            parsed_data = llm.parse_ijazah_text(raw_text)
+            parsed_data = llm.parse_document(raw_text, doc_type)
             scan_result['data'] = parsed_data
             scan_result['status'] = 'COMPLETED'
             

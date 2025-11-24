@@ -28,13 +28,23 @@ class CSVExporter:
             'forensic_score',
             'anomaly_percentage',
             'ocr_confidence',
+            # Data SD/SMP/SMA/SMK
+            'nisn',
+            'nama_sekolah',
+            'tempat_lahir',
+            'tanggal_lahir',
+            'nama_ortu',
+            'kompetensi_keahlian',
+            # Data Perguruan Tinggi
+            'nim',
             'nama_lengkap',
             'nomor_ijazah',
             'nama_pt',
             'program_studi',
+            'jenjang',
             'ipk',
-            'tanggal_lulus',
             'gelar',
+            'tanggal_lulus',
             'processing_status'
         ])
         df.to_csv(self.csv_path, index=False, encoding='utf-8-sig')
@@ -60,12 +70,23 @@ class CSVExporter:
                 'forensic_score': scan_result.get('forensic', {}).get('score', 0),
                 'anomaly_percentage': scan_result.get('forensic', {}).get('anomaly_percentage', 0),
                 'ocr_confidence': scan_result.get('ocr_confidence', {}).get('average_confidence', 0),
+                # Data umum
                 'nama_lengkap': scan_result.get('data', {}).get('nama_lengkap', ''),
                 'nomor_ijazah': scan_result.get('data', {}).get('nomor_ijazah', ''),
+                'tanggal_lulus': scan_result.get('data', {}).get('tanggal_lulus', ''),
+                # Data SD/SMP/SMA/SMK
+                'nisn': scan_result.get('data', {}).get('nisn', ''),
+                'nama_sekolah': scan_result.get('data', {}).get('nama_sekolah', ''),
+                'tempat_lahir': scan_result.get('data', {}).get('tempat_lahir', ''),
+                'tanggal_lahir': scan_result.get('data', {}).get('tanggal_lahir', ''),
+                'nama_ortu': scan_result.get('data', {}).get('nama_ortu', ''),
+                'kompetensi_keahlian': scan_result.get('data', {}).get('kompetensi_keahlian', ''),
+                # Data PT
+                'nim': scan_result.get('data', {}).get('nim', ''),
                 'nama_pt': scan_result.get('data', {}).get('nama_pt', ''),
                 'program_studi': scan_result.get('data', {}).get('program_studi', ''),
+                'jenjang': scan_result.get('data', {}).get('jenjang', ''),
                 'ipk': scan_result.get('data', {}).get('ipk', ''),
-                'tanggal_lulus': scan_result.get('data', {}).get('tanggal_lulus', ''),
                 'gelar': scan_result.get('data', {}).get('gelar', ''),
                 'processing_status': scan_result.get('status', 'COMPLETED')
             }
