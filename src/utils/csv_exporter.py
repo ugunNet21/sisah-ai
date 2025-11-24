@@ -1,0 +1,118 @@
+# src/utils/csv_exporter.py
+
+import pandas as pd
+import os
+from datetime import datetime
+import logging
+
+logger = logging.getLogger(__name__)
+
+class CSVExporter:
+    def __init__(self, csv_path: str = "./results/scan_history.csv"):
+        self.csv_path = csv_path
+        
+        # Create results directory if not exists
+        os.makedirs(os.path.dirname(csv_path), exist_ok=True)
+        
+        # Initialize CSV with headers if not exists
+        if not os.path.exists(csv_path):
+            self._create_csv()
+    
+    def _create_csv(self):
+        """Create CSV with headers"""
+        df = pd.DataFrame(columns=[
+            'timestamp',
+            'filename',
+            'document_type',
+            'forensic_status',
+            'forensic_score',
+            'anomaly_percentage',
+            'ocr_confidence',
+            # Data SD/SMP/SMA/SMK
+            'nisn',
+            'nama_sekolah',
+            'tempat_lahir',
+            'tanggal_lahir',
+            'nama_ortu',
+            'kompetensi_keahlian',
+            # Data Perguruan Tinggi
+            'nim',
+            'nama_lengkap',
+            'nomor_ijazah',
+            'nama_pt',
+            'program_studi',
+            'jenjang',
+            'ipk',
+            'gelar',
+            'tanggal_lulus',
+            'processing_status'
+        ])
+        df.to_csv(self.csv_path, index=False, encoding='utf-8-sig')
+        logger.info(f"CSV file created: {self.csv_path}")
+    
+    def export_result(self, scan_result: dict):
+        """
+        Export hasil scan ke CSV
+        
+        Args:
+            scan_result: dict containing all scan data
+        """
+        try:
+            # Read existing CSV
+            df = pd.read_csv(self.csv_path, encoding='utf-8-sig')
+            
+            # Prepare new row
+            new_row = {
+                'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                'filename': scan_result.get('filename', ''),
+                'document_type': scan_result.get('document_type', ''),
+                'forensic_status': scan_result.get('forensic', {}).get('status', ''),
+                'forensic_score': scan_result.get('forensic', {}).get('score', 0),
+                'anomaly_percentage': scan_result.get('forensic', {}).get('anomaly_percentage', 0),
+                'ocr_confidence': scan_result.get('ocr_confidence', {}).get('average_confidence', 0),
+                # Data umum
+                'nama_lengkap': scan_result.get('data', {}).get('nama_lengkap', ''),
+                'nomor_ijazah': scan_result.get('data', {}).get('nomor_ijazah', ''),
+                'tanggal_lulus': scan_result.get('data', {}).get('tanggal_lulus', ''),
+                # Data SD/SMP/SMA/SMK
+                'nisn': scan_result.get('data', {}).get('nisn', ''),
+                'nama_sekolah': scan_result.get('data', {}).get('nama_sekolah', ''),
+                'tempat_lahir': scan_result.get('data', {}).get('tempat_lahir', ''),
+                'tanggal_lahir': scan_result.get('data', {}).get('tanggal_lahir', ''),
+                'nama_ortu': scan_result.get('data', {}).get('nama_ortu', ''),
+                'kompetensi_keahlian': scan_result.get('data', {}).get('kompetensi_keahlian', ''),
+                # Data PT
+                'nim': scan_result.get('data', {}).get('nim', ''),
+                'nama_pt': scan_result.get('data', {}).get('nama_pt', ''),
+                'program_studi': scan_result.get('data', {}).get('program_studi', ''),
+                'jenjang': scan_result.get('data', {}).get('jenjang', ''),
+                'ipk': scan_result.get('data', {}).get('ipk', ''),
+                'gelar': scan_result.get('data', {}).get('gelar', ''),
+                'processing_status': scan_result.get('status', 'COMPLETED')
+            }
+            
+            # Append to dataframe
+            df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
+            
+            # Save to CSV
+            df.to_csv(self.csv_path, index=False, encoding='utf-8-sig')
+            
+            logger.info(f"Result exported to CSV: {self.csv_path}")
+            
+        except Exception as e:
+            logger.error(f"CSV export error: {e}", exc_info=True)
+    
+    def get_statistics(self) -> dict:
+        """Get statistics from CSV"""
+        try:
+            df = pd.read_csv(self.csv_path, encoding='utf-8-sig')
+            
+            return {
+                'total_scans': len(df),
+                'suspicious_count': len(df[df['forensic_status'].str.contains('SUSPICIOUS', na=False)]),
+                'avg_confidence': df['ocr_confidence'].mean(),
+                'document_types': df['document_type'].value_counts().to_dict()
+            }
+        except Exception as e:
+            logger.error(f"Statistics error: {e}")
+            return {}
